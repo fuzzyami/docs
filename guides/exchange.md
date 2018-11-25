@@ -93,7 +93,7 @@ server.loadAccount(config.baseAccount)
 ## Listening for deposits
 When a user wants to deposit kins in your exchange, instruct them to send them to your base account address with the customerID in the memo field of the transaction.
 
-You must listen for payments to the base account and credit any user that sends kin there. Here's code that listens for these payments:
+You must listen for payments to the base account and credit any user that sends kins there. Here's code that listens for these payments:
 
 ```js
 // Start listening for payments from where you last stopped
@@ -132,7 +132,7 @@ function handlePaymentResponse(record) {
       }
       if (record.asset_type != 'native') {
          // If you are a KIN exchange and the customer sends
-         // you a non-native asset, you can safely ignore it as non-native 
+         // you a non-native asset, you can safely ignore it as non-native assets are not supported on the Kin network.
          // 2. Send it back to the customer  
       } else {
         // Credit the customer in the memo field
@@ -160,7 +160,7 @@ function handlePaymentResponse(record) {
 
 
 ## Submitting withdrawals
-When a user requests a Kin withdrawal from your exchange, you must generate a Kin transaction to send them kins. See following Stellar document[building transactions](https://www.stellar.org/developers/js-stellar-base/learn/building-transactions.html) for more information. Note that this document is aimed at Stellar's users.
+When a user requests a kin withdrawal from your exchange, you must generate a Kin transaction to send them kins. See following Stellar document[building transactions](https://www.stellar.org/developers/js-stellar-base/learn/building-transactions.html) for more information.
 
 The function `handleRequestWithdrawal` will queue up a transaction in the exchange's `StellarTransactions` table whenever a withdrawal is requested.
 
