@@ -1,36 +1,36 @@
 ---
-title: Add Stellar To Your Exchange
+title: Add Kin To Your Exchange
 ---
 
-This guide describes how to add tokens from the Stellar network to your exchange. First, we walk through adding Stellar's native asset, lumens. Following that, we describe how to add other tokens. This example uses Node.js and the [JS Stellar SDK](https://github.com/stellar/js-stellar-sdk), but it should be easy to adapt to other languages.
+This guide describes how to add kins from the Kin network to your exchange. Because the Kin network is a fork of the Stellar network, the terminology in this guide will refer to the Core and Horizon components as Kin/Stellar core and Kin/Stellar Horizon which are the forked versions of the original Stellar core and horizon components. This example uses Node.js and the [JS Stellar SDK](https://github.com/stellar/js-stellar-sdk), but it should be easy to adapt to other languages. Note that unlike Stellar, The Kin network does not support assets other than the native currency, Kin.
 
 There are many ways to architect an exchange. This guide uses the following design:
- - `issuing account`: One Stellar account that holds the majority of customer deposits offline.
- - `base account`: One Stellar account that holds a small amount of customer deposits online and is used to payout to withdrawal requests.
+ - `issuing account`: One Kin account that holds the majority of customer deposits offline.
+ - `base account`: One Kin account that holds a small amount of customer deposits online and is used to payout to withdrawal requests.
  - `customerID`: Each user has a customerID, used to correlate incoming deposits with a particular user's account on the exchange.
 
-The two main integration points to Stellar for an exchange are:<br>
-1) Listening for deposit transactions from the Stellar network<br>
-2) Submitting withdrawal transactions to the Stellar network
+The two main integration points to Kin for an exchange are:<br>
+1) Listening for deposit transactions from the Kin network<br>
+2) Submitting withdrawal transactions to the Kin network
 
 ## Setup
 
 ### Operational
-* *(optional)* Set up [Stellar Core](https://www.stellar.org/developers/stellar-core/software/admin.html)
-* *(optional)* Set up [Horizon](https://www.stellar.org/developers/horizon/reference/index.html)
+* *(optional)* Set up Kin/Stellar Core. [Stellar's Doc](https://www.stellar.org/developers/stellar-core/software/admin.html)[Kin/Stellar forked code](https://github.com/kinecosystem/stellar-core)
+* *(optional)* Set up Kin/Stellar Horizon. [Stellar's Doc](https://www.stellar.org/developers/horizon/reference/index.html)[Kin/Stellar forked code](https://github.com/kinecosystem/go/tree/kinecosystem/master/services/horizon)
 
-It's recommended, though not strictly necessary, to run your own instances of Stellar Core and Horizon - [this doc](https://www.stellar.org/developers/stellar-core/software/admin.html#why-run-a-node) lists more benefits. If you choose not to, it's possible to use the Stellar.org public-facing Horizon servers. Our test and live networks are listed below: 
+It's recommended, though not strictly necessary, to run your own instances of Kin/Stellar Core and Kin/Horizon. If you choose not to, it's possible to use the Kinecosystem.com public-facing Horizon servers. Our test and live networks are listed below: 
 
 ```
-  test net: {hostname:'horizon-testnet.stellar.org', secure:true, port:443};
-  live: {hostname:'horizon.stellar.org', secure:true, port:443};
+  test net: {hostname:'horizon-playground.kininfrastructure.com', secure:true, port:443};
+  live: {hostname:'horizon-ecosystem.kininfrastructure.com', secure:true, port:443};
 ```
 
 ### Issuing account
-An issuing account is typically used to keep the bulk of customer funds secure. An issuing account is a Stellar account whose secret keys are not on any device that touches the Internet. Transactions are manually initiated by a human and signed locally on the offline machine—a local install of `js-stellar-sdk` creates a `tx_blob` containing the signed transaction. This `tx_blob` can be transported to a machine connected to the Internet via offline methods (e.g., USB or by hand). This design makes the issuing account secret key much harder to compromise.
+An issuing account is typically used to keep the bulk of customer funds secure. An issuing account is a Kin account whose secret keys are not on any device that touches the Internet. Transactions are manually initiated by a human and signed locally on the offline machine—a local install of `js-stellar-sdk` creates a `tx_blob` containing the signed transaction. This `tx_blob` can be transported to a machine connected to the Internet via offline methods (e.g., USB or by hand). This design makes the issuing account secret key much harder to compromise.
 
 ### Base account
-A base account contains a more limited amount of funds than an issuing account. A base account is a Stellar account used on a machine that is connected to the Internet. It handles the day-to-day sending and receiving of lumens. The limited amount of funds in a base account restricts loss in the event of a security breach.
+A base account contains a more limited amount of funds than an issuing account. A base account is a Kin account used on a machine that is connected to the Internet. It handles the day-to-day sending and receiving of kins. The limited amount of funds in a base account restricts loss in the event of a security breach.
 
 ### Database
 - Need to create a table for pending withdrawals, `StellarTransactions`.
@@ -39,7 +39,7 @@ A base account contains a more limited amount of funds than an issuing account. 
 - Need to populate the customerID row.
 
 ```
-CREATE TABLE StellarTransactions (UserID INT, Destination varchar(56), XLMAmount INT, state varchar(8));
+CREATE TABLE StellarTransactions (UserID INT, Destination varchar(56), KINAmount INT, state varchar(8));
 CREATE TABLE StellarCursor (id INT, cursor varchar(50)); // id - AUTO_INCREMENT field
 ```
 
@@ -48,7 +48,7 @@ Possible values for `StellarTransactions.state` are "pending", "done", "error".
 
 ### Code
 
-Use this code framework to integrate Stellar into your exchange. For this guide, we use placeholder functions for reading/writing to the exchange database. Each database library connects differently, so we abstract away those details. The following sections describe each step:
+Use this code framework to integrate Kin into your exchange. For this guide, we use placeholder functions for reading/writing to the exchange database. Each database library connects differently, so we abstract away those details. The following sections describe each step:
 
 
 ```js
@@ -57,14 +57,12 @@ var config = {};
 config.baseAccount = "your base account address";
 config.baseAccountSecret = "your base account secret key";
 
-// You can use Stellar.org's instance of Horizon or your own
-config.horizon = 'https://horizon-testnet.stellar.org';
+// You can use KinEcosystem.com's instance of Horizon or your own
+config.horizon = 'https://horizon-playground.kininfrastructure.com';
 
 // Include the JS Stellar SDK
 // It provides a client-side interface to Horizon
 var StellarSdk = require('stellar-sdk');
-// uncomment for live network:
-// StellarSdk.Network.usePublicNetwork();
 
 // Initialize the Stellar SDK with the Horizon instance
 // You want to connect to
@@ -74,7 +72,7 @@ var server = new StellarSdk.Server(config.horizon);
 var lastToken = latestFromDB("StellarCursor");
 
 // Listen for payments from where you last stopped
-// GET https://horizon-testnet.stellar.org/accounts/{config.baseAccount}/payments?cursor={last_token}
+// GET https://horizon-playground.kininfrastructure.com/accounts/{config.baseAccount}/payments?cursor={last_token}
 let callBuilder = server.payments().forAccount(config.baseAccount);
 
 // If no cursor has been saved yet, don't add cursor parameter
@@ -85,7 +83,7 @@ if (lastToken) {
 callBuilder.stream({onmessage: handlePaymentResponse});
 
 // Load the account sequence number from Horizon and return the account
-// GET https://horizon-testnet.stellar.org/accounts/{config.baseAccount}
+// GET https://horizon-playground.kininfrastructure.com/accounts/{config.baseAccount}
 server.loadAccount(config.baseAccount)
   .then(function (account) {
     submitPendingTransactions(account);
@@ -93,15 +91,15 @@ server.loadAccount(config.baseAccount)
 ```
 
 ## Listening for deposits
-When a user wants to deposit lumens in your exchange, instruct them to send XLM to your base account address with the customerID in the memo field of the transaction.
+When a user wants to deposit kins in your exchange, instruct them to send them to your base account address with the customerID in the memo field of the transaction.
 
-You must listen for payments to the base account and credit any user that sends XLM there. Here's code that listens for these payments:
+You must listen for payments to the base account and credit any user that sends kin there. Here's code that listens for these payments:
 
 ```js
 // Start listening for payments from where you last stopped
 var lastToken = latestFromDB("StellarCursor");
 
-// GET https://horizon-testnet.stellar.org/accounts/{config.baseAccount}/payments?cursor={last_token}
+// GET https://horizon-playground.kininfrastructure.com/accounts/{config.baseAccount}/payments?cursor={last_token}
 let callBuilder = server.payments().forAccount(config.baseAccount);
 
 // If no cursor has been saved yet, don't add cursor parameter
@@ -116,14 +114,14 @@ callBuilder.stream({onmessage: handlePaymentResponse});
 For every payment received by the base account, you must:<br>
  - check the memo field to determine which user sent the deposit.<br>
  - record the cursor in the `StellarCursor` table so you can resume payment processing where you left off.<br>
- - credit the user's account in the DB with the number of XLM they sent to deposit.
+ - credit the user's account in the DB with the number of kins they sent to deposit.
 
 So, you pass this function as the `onmessage` option when you stream payments:
 
 ```js
 function handlePaymentResponse(record) {
 
-  // GET https://horizon-testnet.stellar.org/transaction/{id of transaction this payment is part of}
+  // GET https://horizon-playground.kininfrastructure.com/transaction/{id of transaction this payment is part of}
   record.transaction()
     .then(function(txn) {
       var customer = txn.memo;
@@ -133,9 +131,8 @@ function handlePaymentResponse(record) {
         return;
       }
       if (record.asset_type != 'native') {
-         // If you are a XLM exchange and the customer sends
-         // you a non-native asset, some options for handling it are
-         // 1. Trade the asset to native and credit that amount
+         // If you are a KIN exchange and the customer sends
+         // you a non-native asset, you can safely ignore it as non-native 
          // 2. Send it back to the customer  
       } else {
         // Credit the customer in the memo field
@@ -163,25 +160,25 @@ function handlePaymentResponse(record) {
 
 
 ## Submitting withdrawals
-When a user requests a lumen withdrawal from your exchange, you must generate a Stellar transaction to send them XLM. See [building transactions](https://www.stellar.org/developers/js-stellar-base/learn/building-transactions.html) for more information.
+When a user requests a Kin withdrawal from your exchange, you must generate a Kin transaction to send them kins. See following Stellar document[building transactions](https://www.stellar.org/developers/js-stellar-base/learn/building-transactions.html) for more information. Note that this document is aimed at Stellar's users.
 
 The function `handleRequestWithdrawal` will queue up a transaction in the exchange's `StellarTransactions` table whenever a withdrawal is requested.
 
 ```js
-function handleRequestWithdrawal(userID,amountLumens,destinationAddress) {
+function handleRequestWithdrawal(userID,amountKins,destinationAddress) {
   // Update in an atomic transaction
   db.transaction(function() {
     // Read the user's balance from the exchange's database
     var userBalance = getBalance('userID');
 
-    // Check that user has the required lumens
-    if (amountLumens <= userBalance) {
-      // Debit the user's internal lumen balance by the amount of lumens they are withdrawing
-      store([userID, userBalance - amountLumens], "UserBalances");
+    // Check that user has the required kins
+    if (amountKins <= userBalance) {
+      // Debit the user's internal kin balance by the amount of kins they are withdrawing
+      store([userID, userBalance - amountKins], "UserBalances");
       // Save the transaction information in the StellarTransactions table
-      store([userID, destinationAddress, amountLumens, "pending"], "StellarTransactions");
+      store([userID, destinationAddress, amountKins, "pending"], "StellarTransactions");
     } else {
-      // If the user doesn't have enough XLM, you can alert them
+      // If the user doesn't have enough KIN, you can alert them
     }
   });
 }
@@ -193,13 +190,13 @@ Then, you should run `submitPendingTransactions`, which will check `StellarTrans
 StellarSdk.Network.useTestNetwork();
 // This is the function that handles submitting a single transaction
 
-function submitTransaction(exchangeAccount, destinationAddress, amountLumens) {
+function submitTransaction(exchangeAccount, destinationAddress, amountKins) {
   // Update transaction state to sending so it won't be
   // resubmitted in case of the failure.
   updateRecord('sending', "StellarTransactions");
 
   // Check to see if the destination address exists
-  // GET https://horizon-testnet.stellar.org/accounts/{destinationAddress}
+  // GET https://horizon-playground.kininfrastructure.com/accounts/{destinationAddress}
   server.loadAccount(destinationAddress)
     // If so, continue by submitting a transaction to the destination
     .then(function(account) {
@@ -207,7 +204,7 @@ function submitTransaction(exchangeAccount, destinationAddress, amountLumens) {
         .addOperation(StellarSdk.Operation.payment({
           destination: destinationAddress,
           asset: StellarSdk.Asset.native(),
-          amount: amountLumens
+          amount: amountKins
         }))
         // Sign the transaction
         .build();
@@ -223,8 +220,8 @@ function submitTransaction(exchangeAccount, destinationAddress, amountLumens) {
       var transaction = new StellarSdk.TransactionBuilder(exchangeAccount)
         .addOperation(StellarSdk.Operation.createAccount({
           destination: destinationAddress,
-          // Creating an account requires funding it with XLM
-          startingBalance: amountLumens
+          // Creating an account requires funding it with kins
+          startingBalance: amountKins
         }))
         .build();
 
@@ -259,7 +256,7 @@ function submitPendingTransactions(exchangeAccount) {
       // ES7 `await` keyword but you should create a "promise waterfall" so
       // `setTimeout` line below is executed after all transactions are submitted.
       // If you won't do it will be possible to send a transaction twice or more.
-      await submitTransaction(exchangeAccount, tx.destinationAddress, tx.amountLumens);
+      await submitTransaction(exchangeAccount, tx.destinationAddress, tx.amountKins);
     }
 
     // Wait 30 seconds and process next batch of transactions.
@@ -269,52 +266,3 @@ function submitPendingTransactions(exchangeAccount) {
   });
 }
 ```
-
-## Going further...
-### Federation
-The federation protocol allows you to give your users easy addresses—e.g., bob*yourexchange.com—rather than cumbersome raw addresses such as: GCEZWKCA5VLDNRLN3RPRJMRZOX3Z6G5CHCGSNFHEYVXM3XOJMDS674JZ?19327
-
-For more information, check out the [federation guide](./concepts/federation.md).
-
-### Anchor
-If you're an exchange, it's easy to become a Stellar anchor as well. Anchors are entities people trust to hold their deposits and issue credits into the Stellar network. As such, they act a bridge between existing currencies and the Stellar network.  Becoming a anchor could potentially expand your business.
-
-To learn more about what it means to be an anchor, see the [anchor guide](./anchor/index.html).
-
-### Accepting Other Tokens 
-If you'd like to accept other non-lumen tokens follow these instructions. 
-
-First, open a [trustline](https://www.stellar.org/developers/guides/concepts/assets.html#trustlines) with the issuing account of the token you'd like to list -- without this you cannot begin to accept the token. 
-
-```js
-var someAsset = new StellarSdk.Asset('ASSET_CODE', issuingKeys.publicKey());
-
-transaction.addOperation(StellarSdk.Operation.changeTrust({
-        asset: someAsset
-}))
-```
-If the token issuer has `authorization_required` set to true, you will need to wait for the trustline to be authorized before you can begin accepting this token. Read more about [trustline authorization here](https://www.stellar.org/developers/guides/concepts/assets.html#controlling-asset-holders).
-
-Then, make a few changes to the example code above:
-* In the `handlePaymentResponse` function, we dealt with the case of incoming non-lumen assets. Since we are now accepting other tokens, you will need to change this condition; if the user sends us XLM we will either:
-	1. Trade lumens for the desired token
-	2. Send the lumens back to the sender
-
-*Note*: the user cannot send us tokens whose issuing account we have not explicitly opened a trustline with.
-
-* In the `withdraw` function, when we add an operation to the transaction, we must specify the details of the token we are sending. For example: 
-```js
-var someAsset = new StellarSdk.Asset('ASSET_CODE', issuingKeys.publicKey());
-
-transaction.addOperation(StellarSdk.Operation.payment({
-        destination: receivingKeys.publicKey(),
-        asset: someAsset,
-        amount: '10'
-      }))
-```
-* In the `withdraw` function your customer must have opened a trustline with the issuing account of the token they are withdrawing. So you must take the following into consideration:
-	* Confirm the user receiving the token has a trustline
-	* Parse the [Horizon error](https://www.stellar.org/developers/guides/concepts/list-of-operations.html#payment) that will occur after sending a token to an account without a trustline
-
-
-For more information about tokens check out the [general asset guide](https://www.stellar.org/developers/guides/concepts/assets.html) and the [issuing asset guide](https://www.stellar.org/developers/guides/issuing-assets.html).
